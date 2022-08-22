@@ -60,16 +60,7 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
       var needTargetFilter = sourceIsNullable && !targetIsNullable;
       if (matchingMappingListMethods.isNotEmpty) {
         final nestedMapping = matchingMappingListMethods.first;
-        // expr = refer(nestedMapping.name);
-        final invokeStr = generateNestedMapping(
-          nestedMapping, 
-          sourceIsNullable, 
-          refer("x"), 
-          refer("x"),
-        ).accept(DartEmitter()).toString();
-        expr = refer('''
-          (x) => $invokeStr
-        ''');
+        expr = generateNestedMappingLambda(sourceListType, nestedMapping);
         final returnIsNullable = checkNestMappingReturnNullable(nestedMapping, sourceIsNullable);
         needTargetFilter = !targetIsNullable && returnIsNullable; 
       }

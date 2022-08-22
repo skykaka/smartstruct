@@ -6,6 +6,32 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:code_builder/code_builder.dart';
 import 'package:smartstruct_generator/models/source_assignment.dart';
 
+Reference generateNestedMappingLambda(
+  DartType inputType,
+  MethodElement nestedMapping,
+) {
+
+  if(
+    _isTypeNullable(inputType) && 
+    !isNestedMappingSourceNullable(nestedMapping)
+  ) {
+    return refer('''
+      (x) => x == null ? null : ${nestedMapping.name}(x)
+    ''');
+  }
+
+  return refer('''
+    (x) => ${nestedMapping.name}(x)
+  ''');
+}
+
+bool isNestedMappingSourceNullable(MethodElement nestedMapping) {
+  return _isTypeNullable(nestedMapping.parameters.first.type);
+}
+
+bool _isTypeNullable(DartType type) {
+  return type.nullabilitySuffix == NullabilitySuffix.question;
+}
 
 Expression generateNestedMappingForFunctionMapping(
   ExecutableElement sourceFunction,
