@@ -90,19 +90,12 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
           .asA(refer(targetField.type.getDisplayString(withNullability: true)));
       }
     } else {
-      // found a mapping method in the class which will map the source to target
-      final matchingMappingMethods = findMatchingMappingMethods(
-          abstractMapper, targetField.type, sourceField.type);
-
-      // nested classes can be mapped with their own mapping methods
-      if (matchingMappingMethods.isNotEmpty) {
         sourceFieldAssignment = generateNestedMapping(
-          matchingMappingMethods.first, 
-          sourceAssignment.refChain!.isNullable,
-          refer(sourceAssignment.refChain!.refWithQuestion),
-          refer(sourceAssignment.refChain!.ref),
+          abstractMapper,
+          targetField.type,
+          sourceAssignment,
+          sourceFieldAssignment
         );
-      }
     }
   }
   return sourceFieldAssignment;

@@ -6,6 +6,31 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:code_builder/code_builder.dart';
 import 'package:smartstruct_generator/models/source_assignment.dart';
 
+import '../models/RefChain.dart';
+
+Expression generateNestedMapping(
+  ClassElement abstractMapper, 
+  DartType targetType, 
+  SourceAssignment sourceAssignment,
+  Expression expression
+) {
+
+  // found a mapping method in the class which will map the source to target
+  final matchingMappingMethods = findMatchingMappingMethods(abstractMapper, targetType, sourceAssignment.field!.type);
+  
+
+  if (matchingMappingMethods.isEmpty) {
+    return expression;
+  }
+
+  final matchingMappingMethod = matchingMappingMethods.first;
+
+  return _generateNestedMapping(
+    matchingMappingMethod, 
+    sourceAssignment.refChain!,
+  );
+}
+
 Reference generateNestedMappingLambda(
   DartType inputType,
   MethodElement nestedMapping,
@@ -105,27 +130,21 @@ generateSafeCall(
 ''';
 }
 
-Expression generateNestedMapping(
+Expression _generateNestedMapping(
   MethodElement method, 
-  bool sourceNullable,
-  Expression refWithQuestion,
-  Expression ref,
+  RefChain refChain,
 ) {
-  Expression sourceFieldAssignment;
   if(method.parameters.first.isOptional) {
     // The parameter can be null.
-    sourceFieldAssignment = refer(method.name)
-        .call([refWithQuestion]);
+    return refer(method.name)
+        .call([refer(refChain.refWithQuestion)]);
   } else {
-    sourceFieldAssignment = refer(method.name)
-        .call([ref]);
-    sourceFieldAssignment = generateSafeExpression(
-      sourceNullable,
-      refWithQuestion, 
-      sourceFieldAssignment
+    return generateSafeExpression(
+      refChain.isNullable,
+      refer(refChain.refWithQuestion), 
+      refer(method.name).call([refer(refChain.ref)])
     );
   }
-  return sourceFieldAssignment;
 }
 
 // needCheck =  true => sourceRef == null ? null : expression
