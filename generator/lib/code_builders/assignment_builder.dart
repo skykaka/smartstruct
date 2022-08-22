@@ -35,7 +35,7 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
     sourceFieldAssignment = expr.call([...references], makeNamedArgumentForStaticFunction(sourceFunction));
 
     // The return of the function may be needed a nested mapping.
-    sourceFieldAssignment = invokeNestedMappingForStaticFunction(
+    sourceFieldAssignment = generateNestedMappingForFunctionMapping(
       sourceFunction, 
       abstractMapper, 
       targetField, 
@@ -49,7 +49,7 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
     if (sourceAssignment.shouldAssignList(targetField.type)) {
       final sourceListType = _getGenericTypes(sourceField.type).first;
       final targetListType = _getGenericTypes(targetField.type).first;
-      final matchingMappingListMethods = findMatchingMappingMethod(
+      final matchingMappingListMethods = findMatchingMappingMethods(
           abstractMapper, targetListType, sourceListType);
 
       // mapping expression, default is just the identity,
@@ -61,7 +61,7 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
       if (matchingMappingListMethods.isNotEmpty) {
         final nestedMapping = matchingMappingListMethods.first;
         // expr = refer(nestedMapping.name);
-        final invokeStr = invokeNestedMappingFunction(
+        final invokeStr = generateNestedMapping(
           nestedMapping, 
           sourceIsNullable, 
           refer("x"), 
@@ -100,12 +100,12 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
       }
     } else {
       // found a mapping method in the class which will map the source to target
-      final matchingMappingMethods = findMatchingMappingMethod(
+      final matchingMappingMethods = findMatchingMappingMethods(
           abstractMapper, targetField.type, sourceField.type);
 
       // nested classes can be mapped with their own mapping methods
       if (matchingMappingMethods.isNotEmpty) {
-        sourceFieldAssignment = invokeNestedMappingFunction(
+        sourceFieldAssignment = generateNestedMapping(
           matchingMappingMethods.first, 
           sourceAssignment.refChain!.isNullable,
           refer(sourceAssignment.refChain!.refWithQuestion),

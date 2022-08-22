@@ -7,14 +7,14 @@ import 'package:code_builder/code_builder.dart';
 import 'package:smartstruct_generator/models/source_assignment.dart';
 
 
-Expression invokeNestedMappingForStaticFunction(
+Expression generateNestedMappingForFunctionMapping(
   ExecutableElement sourceFunction,
   ClassElement abstractMapper,
   VariableElement targetField,
   Expression sourceFieldAssignment,
 ) {
   final returnType = sourceFunction.returnType;
-  final matchingMappingMethods = findMatchingMappingMethod(
+  final matchingMappingMethods = findMatchingMappingMethods(
       abstractMapper, targetField.type, returnType);
   if(matchingMappingMethods.isNotEmpty) {
     final nestedMappingMethod = matchingMappingMethods.first;
@@ -23,7 +23,7 @@ Expression invokeNestedMappingForStaticFunction(
       nestedMappingMethod.parameters.first.type.nullabilitySuffix != NullabilitySuffix.question &&
       sourceFunction.returnType.nullabilitySuffix == NullabilitySuffix.question
     ) {
-      final str = makeNullCheckCall(
+      final str = generateSafeCall(
         sourceFieldAssignment.accept(
           DartEmitter()
         ).toString(),
@@ -40,7 +40,7 @@ Expression invokeNestedMappingForStaticFunction(
 
 /// Finds a matching Mapping Method in [classElement]
 /// which has the same return type as the given [targetReturnType] and same parametertype as the given [sourceParameterType]
-Iterable<MethodElement> findMatchingMappingMethod(ClassElement classElement,
+Iterable<MethodElement> findMatchingMappingMethods(ClassElement classElement,
     DartType targetReturnType, DartType sourceParameterType) {
   final matchingMappingMethods = classElement.methods.where((met) {
     // Sometimes the user is troubled by the nullability of these types.
@@ -65,7 +65,7 @@ Iterable<MethodElement> findMatchingMappingMethod(ClassElement classElement,
   return matchingMappingMethods;
 }
 
-makeNullCheckCall(
+generateSafeCall(
   String checkTarget,
   MethodElement method,
 ) {
@@ -79,7 +79,7 @@ makeNullCheckCall(
 ''';
 }
 
-Expression invokeNestedMappingFunction(
+Expression generateNestedMapping(
   MethodElement method, 
   bool sourceNullable,
   Expression refWithQuestion,
@@ -93,7 +93,7 @@ Expression invokeNestedMappingFunction(
   } else {
     sourceFieldAssignment = refer(method.name)
         .call([ref]);
-    sourceFieldAssignment = checkNullExpression(
+    sourceFieldAssignment = generateSafeExpression(
       sourceNullable,
       refWithQuestion, 
       sourceFieldAssignment
@@ -102,7 +102,9 @@ Expression invokeNestedMappingFunction(
   return sourceFieldAssignment;
 }
 
-Expression checkNullExpression(
+// needCheck =  true => sourceRef == null ? null : expression
+// needCheck = false => sourceRef
+Expression generateSafeExpression(
   bool needCheck,
   Expression sourceRef,
   Expression expression,
