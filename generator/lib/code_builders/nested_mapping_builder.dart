@@ -16,14 +16,11 @@ Expression generateNestedMapping(
 ) {
 
   // found a mapping method in the class which will map the source to target
-  final matchingMappingMethods = findMatchingMappingMethods(abstractMapper, targetType, sourceAssignment.field!.type);
-  
+  final matchingMappingMethod = findMatchingMappingMethod(abstractMapper, targetType, sourceAssignment.field!.type);
 
-  if (matchingMappingMethods.isEmpty) {
+  if (matchingMappingMethod == null) {
     return expression;
   }
-
-  final matchingMappingMethod = matchingMappingMethods.first;
 
   return _generateNestedMapping(
     matchingMappingMethod, 
@@ -65,10 +62,9 @@ Expression generateNestedMappingForFunctionMapping(
   Expression sourceFieldAssignment,
 ) {
   final returnType = sourceFunction.returnType;
-  final matchingMappingMethods = findMatchingMappingMethods(
+  final nestedMappingMethod = findMatchingMappingMethod(
       abstractMapper, targetField.type, returnType);
-  if(matchingMappingMethods.isNotEmpty) {
-    final nestedMappingMethod = matchingMappingMethods.first;
+  if(nestedMappingMethod != null) {
 
     if(
       nestedMappingMethod.parameters.first.type.nullabilitySuffix != NullabilitySuffix.question &&
@@ -82,7 +78,7 @@ Expression generateNestedMappingForFunctionMapping(
       );
       sourceFieldAssignment = refer(str);
     } else {
-      sourceFieldAssignment = refer(matchingMappingMethods.first.name)
+      sourceFieldAssignment = refer(nestedMappingMethod.name)
           .call([sourceFieldAssignment]);
     }
   }
@@ -91,7 +87,7 @@ Expression generateNestedMappingForFunctionMapping(
 
 /// Finds a matching Mapping Method in [classElement]
 /// which has the same return type as the given [targetReturnType] and same parametertype as the given [sourceParameterType]
-Iterable<MethodElement> findMatchingMappingMethods(ClassElement classElement,
+Iterable<MethodElement> _findMatchingMappingMethods(ClassElement classElement,
     DartType targetReturnType, DartType sourceParameterType) {
   final matchingMappingMethods = classElement.methods.where((met) {
     // Sometimes the user is troubled by the nullability of these types.
@@ -115,6 +111,14 @@ Iterable<MethodElement> findMatchingMappingMethods(ClassElement classElement,
   });
   return matchingMappingMethods;
 }
+
+MethodElement? findMatchingMappingMethod(ClassElement classElement,
+    DartType targetReturnType, DartType sourceParameterType) {
+  
+  final methods = _findMatchingMappingMethods(classElement, targetReturnType, sourceParameterType);
+  return methods.isEmpty ? null : methods.first;
+}
+
 
 generateSafeCall(
   String checkTarget,

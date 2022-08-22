@@ -49,7 +49,7 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
     if (sourceAssignment.shouldAssignList(targetField.type)) {
       final sourceListType = _getGenericTypes(sourceField.type).first;
       final targetListType = _getGenericTypes(targetField.type).first;
-      final matchingMappingListMethods = findMatchingMappingMethods(
+      final nestedMapping = findMatchingMappingMethod(
           abstractMapper, targetListType, sourceListType);
 
       // mapping expression, default is just the identity,
@@ -58,8 +58,7 @@ Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
       var sourceIsNullable = sourceListType.nullabilitySuffix == NullabilitySuffix.question;
       var targetIsNullable = targetListType.nullabilitySuffix == NullabilitySuffix.question; 
       var needTargetFilter = sourceIsNullable && !targetIsNullable;
-      if (matchingMappingListMethods.isNotEmpty) {
-        final nestedMapping = matchingMappingListMethods.first;
+      if (nestedMapping != null) {
         expr = generateNestedMappingLambda(sourceListType, nestedMapping);
         final returnIsNullable = checkNestMappingReturnNullable(nestedMapping, sourceIsNullable);
         needTargetFilter = !targetIsNullable && returnIsNullable; 
