@@ -64,26 +64,22 @@ Expression generateNestedMappingForFunctionMapping(
   final returnType = sourceFunction.returnType;
   final nestedMapping = findMatchingMappingMethod(
       abstractMapper, targetField.type, returnType);
-  
-  if(nestedMapping != null) {
 
-    if(
-      nestedMapping.parameters.first.type.nullabilitySuffix != NullabilitySuffix.question &&
-      sourceFunction.returnType.nullabilitySuffix == NullabilitySuffix.question
-    ) {
-      final str = generateSafeCall(
-        sourceFieldAssignment.accept(
-          DartEmitter()
-        ).toString(),
-        nestedMapping,
-      );
-      sourceFieldAssignment = refer(str);
-    } else {
-      sourceFieldAssignment = refer(nestedMapping.name)
-          .call([sourceFieldAssignment]);
-    }
+  if(nestedMapping == null) {
+    return sourceFieldAssignment;
   }
-  return sourceFieldAssignment;
+
+
+  if(
+    _isTypeNullable(sourceFunction.returnType) &&
+    !isNestedMappingSourceNullable(nestedMapping)
+  ) {
+    return generateSafeCall(sourceFieldAssignment, nestedMapping);
+  } else {
+    return refer(
+      nestedMapping.name
+    ).call([sourceFieldAssignment]);
+  }
 }
 
 /// Finds a matching Mapping Method in [classElement]
@@ -122,17 +118,20 @@ MethodElement? findMatchingMappingMethod(ClassElement classElement,
 
 
 generateSafeCall(
-  String checkTarget,
+  Expression checkTarget,
   MethodElement nestedMapping,
 ) {
 
+  String checkExpString = checkTarget.accept(
+    DartEmitter()
+  ).toString();
   final methodInvoke = refer(nestedMapping.name).call([refer("tmp")]).accept(DartEmitter()).toString();
-  return '''
+  return refer('''
   (){
-    final tmp = $checkTarget;
+    final tmp = $checkExpString;
     return tmp == null ? null : $methodInvoke;
   }()
-''';
+''');
 }
 
 Expression _generateNestedMapping(
