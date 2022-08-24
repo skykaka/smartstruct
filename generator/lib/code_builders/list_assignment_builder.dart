@@ -27,10 +27,8 @@ generateListAssignment(SourceAssignment sourceAssignment,
     refer('(e)=>e') :
     generateNestedMappingLambda(sourceItemType, nestedMapping);
   Expression sourceFieldAssignment =
-      // source.{field}.map
     sourceReference.property(sourceField.name)
     .property('map')
-    // (expr)
     .call([expr]);
 
   if(needTargetFilter) {
@@ -46,22 +44,6 @@ generateListAssignment(SourceAssignment sourceAssignment,
   }
 
   return sourceFieldAssignment;
-}
-
-Iterable<DartType> _getGenericTypes(DartType type) {
-  return type is ParameterizedType ? type.typeArguments : const [];
-}
-
-checkNestMappingReturnNullable(MethodElement method, bool inputNullable) {
-  final returnIsNullable = 
-    (inputNullable && 
-      method.parameters.first.type.nullabilitySuffix != NullabilitySuffix.question
-    ) ||
-    (
-      inputNullable &&
-      method.returnType.nullabilitySuffix == NullabilitySuffix.question
-    );
-    return returnIsNullable;
 }
 
 DartType _getGenericTypeOfList(DartType type) {
