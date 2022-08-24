@@ -165,8 +165,7 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
 
   final caseSensitiveFields = config['caseSensitiveFields'];
   final fieldMapper = caseSensitiveFields ? (a) => a : (a) => a.toUpperCase();
-  final equalsHashCode =
-      caseSensitiveFields ? (a) => a.hashCode : (a) => a.toUpperCase().hashCode;
+  equalsHashCode(a)  => fieldMapper(a).hashCode;
   final mappingConfig = MapperConfig.readMappingConfig(method);
 
   /// With HashMap you can specify how to compare keys
@@ -187,7 +186,7 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
         continue;
       }
 
-      _checkDuplicatedKey(targetToSource, f.name, caseSensitiveFields);
+      _checkDuplicatedKey(targetToSource, f.name);
 
       targetToSource[f.name] =
           SourceAssignment.fromRefChain(RefChain([sourceEntry.value, f]));
@@ -197,6 +196,12 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
   /// If there are Mapping Annotations on the method, the source attribute of the source mapping class,
   /// will be replaced with the source attribute of the given mapping config.
   mappingConfig.forEach((targetField, mappingConfig) {
+    _checkDuplicatedKey(targetToSource, targetField);
+
+    if (mappingConfig.ignore) {
+      targetToSource.remove(targetField);
+      return;
+    }
 
     final sourceField = mappingConfig.source;
     if (sourceField != null) {
@@ -208,63 +213,17 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
         targetToSource[targetField] = SourceAssignment.fromRefChain(refChain);
       }
     }
-
-    if (mappingConfig.ignore) {
-      targetToSource.remove(targetField);
-    }
   });
 
   return [targetToSource];
 }
 
-/// Extracts all Mapping Config Entries in [mappingConfig] which contains source mappings of type string
-Map<String, MappingConfig> _extractStringMappingConfig(
-    Map<String, MappingConfig> mappingConfig) {
-  final mappingStringConfig = <String, MappingConfig>{};
-  mappingConfig.forEach((key, value) {
-    if (value.source != null && value.source!.toStringValue() != null) {
-      mappingStringConfig.putIfAbsent(key, () => value);
-    }
-  });
-  return mappingStringConfig;
-}
-
-Map<String, List<String>> _findMatchingSourceClazzInMappingMap(
-    Map<String, MappingConfig> mappingStringConfig,
-    String matchingSourceClazzName) {
-  Map<String, List<String>> ret = {};
-  mappingStringConfig.forEach((key, value) {
-    // clazz.attribute1.attribute1_1
-    final sourceValueList = value.source!.toStringValue()!.split(".");
-    final sourceClass = sourceValueList[0];
-    if (sourceClass == matchingSourceClazzName) {
-      ret.putIfAbsent(key, () => sourceValueList);
-    }
-  });
-  return ret;
-}
-
-/// A search for a potential underlying should only be continued, if the field is not a primitive type (string, int, double etc)
-bool _shouldSearchMoreFields(FieldElement field) {
-  return !field.type.isDartCoreString &&
-      !field.type.isDartCoreBool &&
-      !field.type.isDartCoreDouble &&
-      !field.type.isDartCoreFunction &&
-      !field.type.isDartCoreInt &&
-      !field.type.isDartCoreIterable &&
-      !field.type.isDartCoreList &&
-      !field.type.isDartCoreMap &&
-      !field.type.isDartCoreNull &&
-      !field.type.isDartCoreNum &&
-      !field.type.isDartCoreSet;
-}
 
 _checkDuplicatedKey(
   Map<String, SourceAssignment> targetToSource,
   String name,
-  bool caseSensitiveFields,
 ) {
-  if (targetToSource.containsKey(name) && !caseSensitiveFields) {
+  if (targetToSource.containsKey(name)) {
         final duplicatedKey = targetToSource.keys
             .toList()
             .firstWhere((k) => k.toUpperCase() == name.toUpperCase());
