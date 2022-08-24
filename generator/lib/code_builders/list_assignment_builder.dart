@@ -14,13 +14,13 @@ generateListAssignment(SourceAssignment sourceAssignment,
   final sourceField = sourceAssignment.field!;
   final sourceReference = refer(sourceAssignment.sourceName!);
 
-  final sourceListType = _getGenericTypes(sourceField.type).first;
-  final targetListType = _getGenericTypes(targetField.type).first;
+  final sourceItemType = _getGenericTypeOfList(sourceField.type);
+  final targetItemType = _getGenericTypeOfList(targetField.type);
   final nestedMapping = findMatchingMappingMethod(
-      abstractMapper, targetListType, sourceListType);
+      abstractMapper, targetItemType, sourceItemType);
 
-  var sourceIsNullable = sourceListType.nullabilitySuffix == NullabilitySuffix.question;
-  var targetIsNullable = targetListType.nullabilitySuffix == NullabilitySuffix.question; 
+  var sourceIsNullable = sourceItemType.nullabilitySuffix == NullabilitySuffix.question;
+  var targetIsNullable = targetItemType.nullabilitySuffix == NullabilitySuffix.question; 
   var needTargetFilter = sourceIsNullable && !targetIsNullable;
   if (nestedMapping != null) {
     final returnIsNullable = checkNestMappingReturnNullable(nestedMapping, sourceIsNullable);
@@ -31,7 +31,7 @@ generateListAssignment(SourceAssignment sourceAssignment,
   // for example for primitive types or objects that do not have their own mapping method
   final expr = nestedMapping == null ?
     refer('(e)=>e') :
-    generateNestedMappingLambda(sourceListType, nestedMapping);
+    generateNestedMappingLambda(sourceItemType, nestedMapping);
   Expression sourceFieldAssignment =
       // source.{field}.map
     sourceReference.property(sourceField.name)
@@ -74,4 +74,13 @@ checkNestMappingReturnNullable(MethodElement method, bool inputNullable) {
       method.returnType.nullabilitySuffix == NullabilitySuffix.question
     );
     return returnIsNullable;
+}
+
+DartType _getGenericTypeOfList(DartType type) {
+  if(type is! ParameterizedType) {
+    throw InvalidGenerationSourceError(
+      "The type ${type.getDisplayString(withNullability: false)} is not a ListLike type!"
+    );
+  }
+  return type.typeArguments.first;
 }
