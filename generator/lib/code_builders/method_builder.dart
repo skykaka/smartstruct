@@ -175,14 +175,18 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
   var targetToSource = HashMap<String, SourceAssignment>(
       equals: (a, b) => fieldMapper(a) == fieldMapper(b),
       hashCode: (a) => equalsHashCode(a));
-
-  final mappingStringConfig = _extractStringMappingConfig(mappingConfig);
+  final mappingConfigKeySet = HashSet(
+      equals: (a, b) => fieldMapper(a) == fieldMapper(b),
+      hashCode: (a) => equalsHashCode(a));
+  mappingConfigKeySet.addAll(mappingConfig.keys);
 
   for (final sourceEntry in sourceMap.entries) {
-    Map<String, List<String>> matchedSourceClazzInSourceMapping =
-        _findMatchingSourceClazzInMappingMap(
-            mappingStringConfig, sourceEntry.value.displayName);
     for (var f in _findFields(sourceEntry.key)) {
+      // The target field is binded by annotation 'Mapping'. The direct mapping is skiped.
+      if(mappingConfigKeySet.contains(f.name)) {
+        continue;
+      }
+
       if (targetToSource.containsKey(f.name) && !caseSensitiveFields) {
         final duplicatedKey = targetToSource.keys
             .toList()
@@ -191,19 +195,9 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
             'Mapper got case insensitive fields and contains fields: ${f.name} and $duplicatedKey. If you use a case-sensitive mapper, make sure the fields are unique in a case insensitive way.',
             todo: "Use case sensitive mapper or change field's names");
       }
-      if (matchedSourceClazzInSourceMapping.isNotEmpty &&
-          _shouldSearchMoreFields(f)) {
-        for (var matchedTarget in matchedSourceClazzInSourceMapping.keys) {
-          final sourceValueList =
-              matchedSourceClazzInSourceMapping[matchedTarget]!;
-          
-          final refChain = RefChain.byPropNames(sourceEntry.value, sourceValueList.sublist(1));
-          targetToSource[matchedTarget] = SourceAssignment.fromRefChain(refChain);
-        }
-      } else {
-        targetToSource[f.name] =
-            SourceAssignment.fromRefChain(RefChain([sourceEntry.value, f]));
-      }
+
+      targetToSource[f.name] =
+          SourceAssignment.fromRefChain(RefChain([sourceEntry.value, f]));
     }
   }
 
@@ -216,14 +210,14 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
         targetToSource[targetField] = SourceAssignment.fromFunction(
             sourceField.toFunctionValue()!, [...sources]);
       } else if (sourceField.toStringValue() != null) {
-        final sourceFieldString = sourceField.toStringValue()!;
-        // sourceField exists in any sourceParam
-        if (targetToSource.containsKey(sourceFieldString)) {
-          // replace mapping target with mapping
-          targetToSource.putIfAbsent(
-              targetField, () => targetToSource[sourceFieldString]!);
-          targetToSource.remove(sourceFieldString);
-        }
+        final names = sourceField.toStringValue()!.split('.');
+        final findSources = sources.where((element) => element.name == names.first);
+        final refChain = findSources.isNotEmpty ?
+          RefChain.byPropNames(findSources.first, names.skip(1)) :
+          // If the start of the 'refString' is not the source name,
+          // use the first source in the source list by default.
+          RefChain.byPropNames(sources.first, names);
+        targetToSource[targetField] = SourceAssignment.fromRefChain(refChain);
       }
     }
 
