@@ -19,13 +19,7 @@ generateListAssignment(SourceAssignment sourceAssignment,
   final nestedMapping = findMatchingMappingMethod(
       abstractMapper, targetItemType, sourceItemType);
 
-  var sourceIsNullable = sourceItemType.nullabilitySuffix == NullabilitySuffix.question;
-  var targetIsNullable = targetItemType.nullabilitySuffix == NullabilitySuffix.question; 
-  var needTargetFilter = sourceIsNullable && !targetIsNullable;
-  if (nestedMapping != null) {
-    final returnIsNullable = checkNestMappingReturnNullable(nestedMapping, sourceIsNullable);
-    needTargetFilter = !targetIsNullable && returnIsNullable; 
-  }
+  final needTargetFilter = _isTargetNotNullFilterNeeded(sourceItemType, targetItemType, nestedMapping);
 
   // mapping expression, default is just the identity,
   // for example for primitive types or objects that do not have their own mapping method
@@ -83,4 +77,32 @@ DartType _getGenericTypeOfList(DartType type) {
     );
   }
   return type.typeArguments.first;
+}
+
+bool _isTargetNotNullFilterNeeded(
+  DartType sourceItemType,
+  DartType targetItemType,
+  MethodElement? nestedMapping,
+) {
+  if(_isTypeNullable(targetItemType)) {
+    // So the filter is not needed
+    return false;
+  }
+
+  if(nestedMapping != null) {
+    return
+      _isTypeNullable(sourceItemType) &&
+      (
+        _isTypeNullable(nestedMapping.returnType) ||
+        // When the source is null, the nested mapping will be skipped and the value null will be returned directly.
+        // So the NotNullFilter is Needed.
+        !isNestedMappingSourceNullable(nestedMapping)
+      );
+  }
+
+  return _isTypeNullable(sourceItemType);
+}
+
+bool _isTypeNullable(DartType type) {
+  return type.nullabilitySuffix == NullabilitySuffix.question;
 }
