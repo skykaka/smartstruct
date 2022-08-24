@@ -187,14 +187,7 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
         continue;
       }
 
-      if (targetToSource.containsKey(f.name) && !caseSensitiveFields) {
-        final duplicatedKey = targetToSource.keys
-            .toList()
-            .firstWhere((k) => k.toUpperCase() == f.name.toUpperCase());
-        throw InvalidGenerationSourceError(
-            'Mapper got case insensitive fields and contains fields: ${f.name} and $duplicatedKey. If you use a case-sensitive mapper, make sure the fields are unique in a case insensitive way.',
-            todo: "Use case sensitive mapper or change field's names");
-      }
+      _checkDuplicatedKey(targetToSource, f.name, caseSensitiveFields);
 
       targetToSource[f.name] =
           SourceAssignment.fromRefChain(RefChain([sourceEntry.value, f]));
@@ -204,19 +197,14 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
   /// If there are Mapping Annotations on the method, the source attribute of the source mapping class,
   /// will be replaced with the source attribute of the given mapping config.
   mappingConfig.forEach((targetField, mappingConfig) {
+
     final sourceField = mappingConfig.source;
     if (sourceField != null) {
       if (sourceField.toFunctionValue() != null) {
         targetToSource[targetField] = SourceAssignment.fromFunction(
             sourceField.toFunctionValue()!, [...sources]);
       } else if (sourceField.toStringValue() != null) {
-        final names = sourceField.toStringValue()!.split('.');
-        final findSources = sources.where((element) => element.name == names.first);
-        final refChain = findSources.isNotEmpty ?
-          RefChain.byPropNames(findSources.first, names.skip(1)) :
-          // If the start of the 'refString' is not the source name,
-          // use the first source in the source list by default.
-          RefChain.byPropNames(sources.first, names);
+        final refChain = _createChainRefFromString(sources, sourceField.toStringValue()!);
         targetToSource[targetField] = SourceAssignment.fromRefChain(refChain);
       }
     }
@@ -269,4 +257,35 @@ bool _shouldSearchMoreFields(FieldElement field) {
       !field.type.isDartCoreNull &&
       !field.type.isDartCoreNum &&
       !field.type.isDartCoreSet;
+}
+
+_checkDuplicatedKey(
+  Map<String, SourceAssignment> targetToSource,
+  String name,
+  bool caseSensitiveFields,
+) {
+  if (targetToSource.containsKey(name) && !caseSensitiveFields) {
+        final duplicatedKey = targetToSource.keys
+            .toList()
+            .firstWhere((k) => k.toUpperCase() == name.toUpperCase());
+    throw InvalidGenerationSourceError(
+        'Mapper got case insensitive fields and contains fields: $name and $duplicatedKey. If you use a case-sensitive mapper, make sure the fields are unique in a case insensitive way.',
+        todo: "Use case sensitive mapper or change field's names");
+  }
+}
+
+_createChainRefFromString(List<ParameterElement> sources, String refString) {
+  if(refString.isEmpty) {
+    throw InvalidGenerationSourceError(
+      'The ref length is 0!'
+    );
+  }
+
+  final names = refString.split('.');
+  final findSources = sources.where((element) => element.name == names.first);
+  return findSources.isNotEmpty ?
+    RefChain.byPropNames(findSources.first, names.skip(1)) :
+    // If the start of the 'refString' is not the source name,
+    // use the first source in the source list by default.
+    RefChain.byPropNames(sources.first, names);
 }
