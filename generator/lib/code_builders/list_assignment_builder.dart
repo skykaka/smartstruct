@@ -34,21 +34,15 @@ generateListAssignment(SourceAssignment sourceAssignment,
     .call([expr]);
 
   if(needTargetFilter) {
-    sourceFieldAssignment = sourceFieldAssignment.property("where").call([refer("(x) => x != null")]);
-  }
-
-  if(sourceAssignment.needCollect(targetField.type)) {
     sourceFieldAssignment = sourceFieldAssignment
-      //.toList() .toSet()
-      .property(sourceAssignment.collectInvoke(targetField.type))
-      // .property('toList')
-      // .call([])
-      ;
-  }
+      .property("where")
+      .call([refer("(x) => x != null")]);
 
-  if(needTargetFilter) {
+    sourceFieldAssignment = _generateCollectCode(sourceAssignment, targetField.type, sourceFieldAssignment);
     sourceFieldAssignment = sourceFieldAssignment
       .asA(refer(targetField.type.getDisplayString(withNullability: true)));
+  } else {
+    sourceFieldAssignment = _generateCollectCode(sourceAssignment, targetField.type, sourceFieldAssignment);
   }
 
   return sourceFieldAssignment;
@@ -106,3 +100,8 @@ bool _isTargetNotNullFilterNeeded(
 bool _isTypeNullable(DartType type) {
   return type.nullabilitySuffix == NullabilitySuffix.question;
 }
+
+Expression _generateCollectCode(SourceAssignment sourceAssignment, DartType targetType, Expression expression) 
+=> sourceAssignment.needCollect(targetType) ?
+  expression.property(sourceAssignment.collectInvoke(targetType)) :
+  expression;
