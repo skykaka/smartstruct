@@ -161,8 +161,6 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
     ClassElement target,
     MethodElement method,
     Map<String, dynamic> config) {
-  final sourceMap = {for (var e in sources) e.type.element as ClassElement: e};
-
   final caseSensitiveFields = config['caseSensitiveFields'];
   final fieldMapper = caseSensitiveFields ? (a) => a : (a) => a.toUpperCase();
   equalsHashCode(a)  => fieldMapper(a).hashCode;
@@ -174,10 +172,23 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
   var targetToSource = HashMap<String, SourceAssignment>(
       equals: (a, b) => fieldMapper(a) == fieldMapper(b),
       hashCode: (a) => equalsHashCode(a));
-  final mappingConfigKeySet = HashSet(
+  final mappingConfigKeySet = HashSet<String>(
       equals: (a, b) => fieldMapper(a) == fieldMapper(b),
       hashCode: (a) => equalsHashCode(a));
   mappingConfigKeySet.addAll(mappingConfig.keys);
+
+  _collectDirectMapping(targetToSource, sources, mappingConfigKeySet);
+  _collectConfigMapping(targetToSource, sources, mappingConfig);
+  return [targetToSource];
+}
+
+_collectDirectMapping(
+  Map<String, SourceAssignment> targetToSource,
+  List<ParameterElement> sources,
+  Set<String> mappingConfigKeySet,
+) {
+
+  final sourceMap = {for (var e in sources) e.type.element as ClassElement: e};
 
   for (final sourceEntry in sourceMap.entries) {
     for (var f in _findFields(sourceEntry.key)) {
@@ -192,7 +203,13 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
           SourceAssignment.fromRefChain(RefChain([sourceEntry.value, f]));
     }
   }
+}
 
+_collectConfigMapping(
+  Map<String, SourceAssignment> targetToSource,
+  List<ParameterElement> sources,
+  Map<String, MappingConfig> mappingConfig, 
+) {
   /// If there are Mapping Annotations on the method, the source attribute of the source mapping class,
   /// will be replaced with the source attribute of the given mapping config.
   mappingConfig.forEach((targetField, mappingConfig) {
@@ -214,10 +231,7 @@ List<HashMap<String, SourceAssignment>> _targetToSource(
       }
     }
   });
-
-  return [targetToSource];
 }
-
 
 _checkDuplicatedKey(
   Map<String, SourceAssignment> targetToSource,
