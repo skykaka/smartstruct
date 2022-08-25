@@ -20,44 +20,52 @@ import './nested_mapping_builder.dart';
 ///
 Expression generateSourceFieldAssignment(SourceAssignment sourceAssignment,
     ClassElement abstractMapper, VariableElement targetField) {
-  Expression sourceFieldAssignment;
 
   if (sourceAssignment.shouldUseFunction()) {
+    return _generateFunctionMapping(sourceAssignment, abstractMapper, targetField);
+  } else if (sourceAssignment.shouldAssignList(targetField.type)) {
+    return generateListAssignment(sourceAssignment, abstractMapper, targetField);
+  } else {
+    return generateNestedMapping(
+      abstractMapper,
+      targetField.type,
+      sourceAssignment,
+      _generateSourceFileAssignment(sourceAssignment)
+    );
+  }
+}
+
+Expression _generateSourceFileAssignment(SourceAssignment sourceAssignment) {
+  final sourceField = sourceAssignment.field!;
+  final sourceReference = refer(sourceAssignment.sourceName!);
+  return sourceReference.property(sourceField.name);
+}
+
+Expression _generateFunctionMapping(
+  SourceAssignment sourceAssignment,
+  ClassElement abstractMapper,
+  VariableElement targetField
+) {
+
     final sourceFunction = sourceAssignment.function!;
     final references = sourceAssignment.params!
         .map((sourceParam) => refer(sourceParam.displayName));
+
     Expression expr = refer(sourceFunction.name);
     if (sourceFunction.isStatic &&
         sourceFunction.enclosingElement.name != null) {
       expr = refer(sourceFunction.enclosingElement.name!)
           .property(sourceFunction.name);
     }
-    sourceFieldAssignment = expr.call([...references], makeNamedArgumentForStaticFunction(sourceFunction));
+
+    Expression sourceFieldAssignment = expr.call([...references], makeNamedArgumentForStaticFunction(sourceFunction));
 
     // The return of the function may be needed a nested mapping.
-    sourceFieldAssignment = generateNestedMappingForFunctionMapping(
-      sourceFunction, 
-      abstractMapper, 
-      targetField, 
+    return generateNestedMappingForFunctionMapping(
+      sourceFunction,
+      abstractMapper,
+      targetField,
       sourceFieldAssignment);
-  } else {
-    // final sourceClass = sourceAssignment.sourceClass!;
-    final sourceField = sourceAssignment.field!;
-    final sourceReference = refer(sourceAssignment.sourceName!);
-    sourceFieldAssignment = sourceReference.property(sourceField.name);
-    // list support
-    if (sourceAssignment.shouldAssignList(targetField.type)) {
-      sourceFieldAssignment = generateListAssignment(sourceAssignment, abstractMapper, targetField);
-    } else {
-        sourceFieldAssignment = generateNestedMapping(
-          abstractMapper,
-          targetField.type,
-          sourceAssignment,
-          sourceFieldAssignment
-        );
-    }
-  }
-  return sourceFieldAssignment;
 }
 
 
